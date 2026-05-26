@@ -121,6 +121,8 @@
           <FieldRow label="品牌/型号" field="brand" :value="form.brand" :editing="editing" @update="form.brand = $event" type="text" />
           <FieldRow label="颜色/材质" field="colorMaterial" :value="form.colorMaterial" :editing="editing" @update="form.colorMaterial = $event" type="text" />
         </div>
+        <!-- 测量记录列表 -->
+        <MeasurementPanel v-if="project" :projectId="project.id" />
       </div>
 
       <!-- ⑥ 费用与验收 -->
@@ -212,6 +214,7 @@ import {
   PRIORITY_COLORS, STATUS_COLORS
 } from '../constants/options'
 import FieldRow from '../components/FieldRow.vue'
+import MeasurementPanel from '../components/MeasurementPanel.vue'
 
 const route = useRoute()
 const router = useRouter()

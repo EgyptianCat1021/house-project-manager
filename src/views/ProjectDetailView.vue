@@ -148,6 +148,11 @@
         </div>
       </div>
 
+      <!-- ⑦.5 沟通记录 -->
+      <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <CommunicationPanel v-if="project" :projectId="project.id" />
+      </div>
+
       <!-- ⑧ 图片与附件 -->
       <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
@@ -215,6 +220,7 @@ import {
 } from '../constants/options'
 import FieldRow from '../components/FieldRow.vue'
 import MeasurementPanel from '../components/MeasurementPanel.vue'
+import CommunicationPanel from '../components/CommunicationPanel.vue'
 
 const route = useRoute()
 const router = useRouter()

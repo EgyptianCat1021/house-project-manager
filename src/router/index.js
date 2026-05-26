@@ -4,6 +4,9 @@ import { onAuthStateChanged } from 'firebase/auth'
 
 import LoginView from '../views/LoginView.vue'
 import HomeView from '../views/HomeView.vue'
+import ProjectsView from '../views/ProjectsView.vue'
+import ProjectDetailView from '../views/ProjectDetailView.vue'
+import AddProjectView from '../views/AddProjectView.vue'
 
 const routes = [
   {
@@ -16,6 +19,24 @@ const routes = [
     path: '/',
     name: 'Home',
     component: HomeView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/projects',
+    name: 'Projects',
+    component: ProjectsView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/projects/add',
+    name: 'AddProject',
+    component: AddProjectView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/projects/:id',
+    name: 'ProjectDetail',
+    component: ProjectDetailView,
     meta: { requiresAuth: true }
   }
 ]

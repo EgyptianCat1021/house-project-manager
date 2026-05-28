@@ -126,6 +126,23 @@ export const useProjectsStore = defineStore('projects', () => {
 
     const dueThisWeekList = getDueThisWeek(all)
 
+    // 逾期：plannedDate < 今天，且未完成
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const overdueList = unfinished.filter(p => {
+      if (!p.plannedDate) return false
+      try {
+        const d = new Date(p.plannedDate)
+        if (isNaN(d.getTime())) return false
+        return d < today
+      } catch { return false }
+    })
+
+    // 高优先级未设日期：priority=高，无 plannedDate，且未完成
+    const noPlanDateList = unfinished.filter(p =>
+      p.priority === '高' && !p.plannedDate
+    )
+
     return {
       totalProjects: all.length,
       completedCount: completed.length,
@@ -138,6 +155,10 @@ export const useProjectsStore = defineStore('projects', () => {
       issueCount: all.filter(p => p.status === '有问题需协调').length,
       dueThisWeek: dueThisWeekList.length,
       dueThisWeekList,
+      overdueCount: overdueList.length,
+      overdueList,
+      noPlanDateCount: noPlanDateList.length,
+      noPlanDateList,
       byResponsible,
       byArea
     }

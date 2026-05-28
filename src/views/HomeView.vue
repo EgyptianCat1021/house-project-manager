@@ -87,13 +87,25 @@
             <span class="text-lg font-bold text-yellow-500">{{ stats.pendingMeasurement }}</span>
           </div>
 
+          <div @click="$router.push('/projects?filter=overdue')"
+            class="p-4 cursor-pointer hover:bg-red-50 flex items-center justify-between">
+            <span class="text-sm text-gray-600">🚨 已逾期未完成</span>
+            <span class="text-lg font-bold text-red-600">{{ stats.overdueCount }}</span>
+          </div>
+
+          <div @click="$router.push('/projects?filter=noPlanDate')"
+            class="p-4 cursor-pointer hover:bg-yellow-50 flex items-center justify-between">
+            <span class="text-sm text-gray-600">📅 高优先级未设日期</span>
+            <span class="text-lg font-bold text-yellow-600">{{ stats.noPlanDateCount }}</span>
+          </div>
+
         </div>
       </div>
 
       <!-- 本周截止 -->
       <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-          <h2 class="text-sm font-medium text-gray-700">本周截止事项</h2>
+          <h2 @click="$router.push('/projects?filter=dueThisWeek')" class="text-sm font-medium text-gray-700 cursor-pointer hover:text-blue-500">本周截止事项 →</h2>
           <span class="text-xs text-gray-400">{{ stats.dueThisWeek }} 项</span>
         </div>
         <div v-if="stats.dueThisWeek === 0" class="px-4 py-6 text-center text-sm text-gray-400">

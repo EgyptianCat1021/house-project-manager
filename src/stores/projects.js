@@ -15,7 +15,8 @@ export const useProjectsStore = defineStore('projects', () => {
     responsible: '',
     area: '',
     category: '',
-    keyword: ''
+    keyword: '',
+    hideCompleted: true
   })
 
   // 开始实时监听
@@ -40,21 +41,26 @@ export const useProjectsStore = defineStore('projects', () => {
     filters.value[key] = value
   }
 
-  // 清空筛选
+  // 清空筛选（保留 hideCompleted 状态）
   function clearFilters() {
+    const hideCompleted = filters.value.hideCompleted
     filters.value = {
       status: '',
       priority: '',
       responsible: '',
       area: '',
       category: '',
-      keyword: ''
+      keyword: '',
+      hideCompleted
     }
   }
 
   // 筛选后的项目列表
   const filteredProjects = computed(() => {
     return projects.value.filter(p => {
+      // 隐藏已完成逻辑：
+      // 如果 hideCompleted=true，且用户没有主动选"已完成"状态，则隐藏
+      if (filters.value.hideCompleted && filters.value.status !== '已完成' && p.status === '已完成') return false
       if (filters.value.status && p.status !== filters.value.status) return false
       if (filters.value.priority && p.priority !== filters.value.priority) return false
       if (filters.value.responsible && p.responsible !== filters.value.responsible) return false
@@ -78,9 +84,9 @@ export const useProjectsStore = defineStore('projects', () => {
       const now = new Date()
       const startOfWeek = new Date(now)
       startOfWeek.setHours(0, 0, 0, 0)
-      startOfWeek.setDate(now.getDate() - now.getDay() + 1) // 周一
+      startOfWeek.setDate(now.getDate() - now.getDay() + 1)
       const endOfWeek = new Date(startOfWeek)
-      endOfWeek.setDate(startOfWeek.getDate() + 6) // 周日
+      endOfWeek.setDate(startOfWeek.getDate() + 6)
       endOfWeek.setHours(23, 59, 59, 999)
 
       return projectList.filter(p => {
@@ -98,13 +104,12 @@ export const useProjectsStore = defineStore('projects', () => {
     }
   }
 
-  // 统计数据
+  // 统计数据（始终基于全量数据，不受 hideCompleted 影响）
   const stats = computed(() => {
     const all = projects.value
     const unfinished = all.filter(p => p.status !== '已完成')
     const completed = all.filter(p => p.status === '已完成')
 
-    // 按责任方统计未完成
     const byResponsible = {}
     unfinished.forEach(p => {
       if (p.responsible) {
@@ -112,7 +117,6 @@ export const useProjectsStore = defineStore('projects', () => {
       }
     })
 
-    // 按区域统计未完成
     const byArea = {}
     unfinished.forEach(p => {
       if (p.area) {

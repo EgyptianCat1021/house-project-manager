@@ -1,20 +1,13 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { auth } from '../firebase/config.js'
-import { onAuthStateChanged } from 'firebase/auth'
-
-import LoginView from '../views/LoginView.vue'
 import HomeView from '../views/HomeView.vue'
 import ProjectsView from '../views/ProjectsView.vue'
-import ProjectDetailView from '../views/ProjectDetailView.vue'
 import AddProjectView from '../views/AddProjectView.vue'
+import ProjectDetailView from '../views/ProjectDetailView.vue'
+import ExportView from '../views/ExportView.vue'
+import { auth } from '../firebase/config'
+import { onAuthStateChanged } from 'firebase/auth'
 
 const routes = [
-  {
-    path: '/login',
-    name: 'Login',
-    component: LoginView,
-    meta: { requiresAuth: false }
-  },
   {
     path: '/',
     name: 'Home',
@@ -38,6 +31,12 @@ const routes = [
     name: 'ProjectDetail',
     component: ProjectDetailView,
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/export',
+    name: 'Export',
+    component: ExportView,
+    meta: { requiresAuth: true }
   }
 ]
 
@@ -54,12 +53,9 @@ const getCurrentUser = () => new Promise((resolve) => {
 })
 
 router.beforeEach(async (to) => {
-  const user = await getCurrentUser()
-  if (to.meta.requiresAuth && !user) {
-    return { name: 'Login' }
-  }
-  if (to.name === 'Login' && user) {
-    return { name: 'Home' }
+  if (to.meta.requiresAuth) {
+    const user = await getCurrentUser()
+    if (!user) return { path: '/login' }
   }
 })
 

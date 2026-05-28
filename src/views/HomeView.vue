@@ -38,7 +38,7 @@
           <div class="text-2xl font-bold text-orange-500">{{ stats.unfinishedCount }}</div>
           <div class="text-xs text-gray-400 mt-1">未完成</div>
         </div>
-        <div class="bg-white rounded-xl border border-green-200 p-3 text-center">
+        <div @click="$router.push({ path: '/projects', query: { showCompleted: 'true', status: '已完成' } })" class="bg-white rounded-xl border border-green-200 p-3 text-center cursor-pointer hover:bg-green-50">
           <div class="text-2xl font-bold text-green-500">{{ stats.completedCount }}</div>
           <div class="text-xs text-gray-400 mt-1">已完成</div>
         </div>
@@ -167,6 +167,16 @@
         <span class="text-white font-medium">查看全部项目清单 →</span>
       </div>
 
+      <!-- 数据导出备份 -->
+      <div @click="$router.push('/export')"
+        class="bg-white rounded-xl border border-gray-200 px-4 py-4 cursor-pointer hover:bg-gray-50 flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-medium text-gray-700">数据导出备份</h2>
+          <p class="text-xs text-gray-400 mt-0.5">导出 JSON 全量备份或 CSV 文件</p>
+        </div>
+        <span class="text-gray-400">→</span>
+      </div>
+      
       <!-- 数据初始化 -->
       <div class="bg-white rounded-xl border border-gray-200 p-4">
         <h2 class="text-sm font-medium text-gray-700 mb-1">数据初始化</h2>

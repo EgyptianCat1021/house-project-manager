@@ -8,6 +8,9 @@
       </div>
       <div v-if="errorMsg" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
         {{ errorMsg }}
+        <div v-if="showManualHint" class="mt-2 text-xs text-gray-500">
+          请在浏览器地址栏允许弹出窗口，或尝试使用 Chrome 浏览器打开。
+        </div>
       </div>
       <button
         @click="handleGoogleLogin"
@@ -24,7 +27,7 @@
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
         </svg>
-        <span>{{ loading ? '跳转中...' : '使用 Google 账号登录' }}</span>
+        <span>{{ loading ? '登录中...' : '使用 Google 账号登录' }}</span>
       </button>
       <p class="text-center text-xs text-gray-400 mt-6">
         登录后数据将自动在 Mac 和 iPhone 之间同步
@@ -35,23 +38,29 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { signInWithRedirect, getRedirectResult } from 'firebase/auth'
+import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth'
 import { auth, googleProvider } from '../firebase/config.js'
 
 const loading = ref(false)
 const errorMsg = ref('')
+const showManualHint = ref(false)
+
+// 判断是否是 Safari
+function isSafari() {
+  const ua = navigator.userAgent
+  return /Safari/.test(ua) && !/Chrome/.test(ua)
+}
 
 onMounted(async () => {
-  // 处理 redirect 登录回调
+  // 处理 redirect 回调
   try {
     loading.value = true
     const result = await getRedirectResult(auth)
     if (result?.user) {
       window.location.hash = '/'
     }
-  } catch (error) {
-    console.error('登录回调失败:', error)
-    errorMsg.value = '登录失败：' + error.code
+  } catch (e) {
+    console.warn('redirect result:', e)
   } finally {
     loading.value = false
   }
@@ -60,12 +69,28 @@ onMounted(async () => {
 async function handleGoogleLogin() {
   loading.value = true
   errorMsg.value = ''
+  showManualHint.value = false
+
   try {
-    await signInWithRedirect(auth, googleProvider)
-    // redirect 会跳走，不会执行到这里
+    if (isSafari()) {
+      // Safari 用 redirect
+      await signInWithRedirect(auth, googleProvider)
+    } else {
+      // 其他浏览器用 popup
+      await signInWithPopup(auth, googleProvider)
+      window.location.hash = '/'
+      window.location.reload()
+    }
   } catch (error) {
     console.error('登录失败:', error)
-    errorMsg.value = '登录失败：' + error.code
+    if (error.code === 'auth/popup-closed-by-user') {
+      errorMsg.value = '登录窗口已关闭，请重试。'
+    } else if (error.code === 'auth/popup-blocked') {
+      errorMsg.value = '弹出窗口被浏览器阻止。'
+      showManualHint.value = true
+    } else {
+      errorMsg.value = '登录失败：' + error.code
+    }
     loading.value = false
   }
 }

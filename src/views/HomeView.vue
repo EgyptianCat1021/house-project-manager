@@ -179,7 +179,48 @@
         <span class="text-white font-medium">查看全部项目清单 →</span>
       </div>
 
-      <!-- 合同与付款管理 -->
+      <!-- 合同与付款概览卡片 -->
+      <div class="bg-white rounded-xl border border-gray-200 p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-medium text-gray-700">💰 合同与付款概览</h2>
+          <button @click="$router.push('/contract')" class="text-xs text-blue-500 hover:text-blue-600">查看详情 →</button>
+        </div>
+        <div v-if="contractLoading" class="text-xs text-gray-400 py-2 text-center">加载中...</div>
+        <div v-else-if="contractError" class="text-xs text-red-400 py-2 text-center">合同数据加载失败</div>
+        <div v-else class="space-y-2">
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="bg-gray-50 rounded-lg p-2">
+              <div class="text-gray-400 mb-0.5">原合同金额</div>
+              <div class="font-semibold text-gray-700">¥{{ formatAmount(contractData?.originalAmount) }}</div>
+            </div>
+            <div class="bg-blue-50 rounded-lg p-2">
+              <div class="text-gray-400 mb-0.5">合同调整合计</div>
+              <div class="font-semibold" :class="totalAdjustment >= 0 ? 'text-blue-600' : 'text-red-500'">
+                {{ totalAdjustment >= 0 ? '+' : '' }}¥{{ formatAmount(totalAdjustment) }}
+              </div>
+            </div>
+            <div class="bg-green-50 rounded-lg p-2">
+              <div class="text-gray-400 mb-0.5">调整后合同金额</div>
+              <div class="font-semibold text-green-700">¥{{ formatAmount(adjustedAmount) }}</div>
+            </div>
+            <div class="bg-orange-50 rounded-lg p-2">
+              <div class="text-gray-400 mb-0.5">已支付金额</div>
+              <div class="font-semibold text-orange-600">¥{{ formatAmount(totalPaid) }}</div>
+            </div>
+          </div>
+          <div :class="['rounded-lg p-2 text-xs', unpaidAmount > 0 ? 'bg-red-50' : 'bg-gray-50']">
+            <div class="flex items-center justify-between">
+              <span class="text-gray-400">尚未支付金额</span>
+              <span :class="['font-bold text-sm', unpaidAmount > 0 ? 'text-red-500' : 'text-gray-500']">
+                ¥{{ formatAmount(unpaidAmount) }}
+              </span>
+            </div>
+            <div v-if="unpaidAmount > 0" class="text-orange-400 mt-0.5">· 仍有尾款未结清</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 合同与付款管理入口 -->
       <div @click="$router.push('/contract')"
         class="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer hover:bg-gray-50 flex items-center justify-between">
         <div>
@@ -223,6 +264,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { getContract, subscribeAdjustments, subscribePayments } from '../firebase/contract'
 import { useRouter } from 'vue-router'
 import { useProjectsStore } from '../stores/projects'
 import { useCurrentUser } from '../composables/useCurrentUser'
@@ -235,14 +277,54 @@ const router = useRouter()
 const store = useProjectsStore()
 const { user } = useCurrentUser()
 const stats = computed(() => store.stats)
+// ── 合同概览数据 ──
+const contractData = ref(null)
+const contractAdjustments = ref([])
+const contractPayments = ref([])
+const contractLoading = ref(true)
+const contractError = ref(false)
+
+const totalAdjustment = computed(() =>
+  contractAdjustments.value.reduce((sum, a) => sum + (Number(a.amount) || 0), 0)
+)
+const adjustedAmount = computed(() =>
+  (contractData.value?.originalAmount || 0) + totalAdjustment.value
+)
+const totalPaid = computed(() =>
+  contractPayments.value.length > 0
+    ? contractPayments.value.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+    : (contractData.value?.paidAmount || 0)
+)
+const unpaidAmount = computed(() => adjustedAmount.value - totalPaid.value)
+
+function formatAmount(n) {
+  return Number(n || 0).toLocaleString('zh-CN')
+}
+let unsubAdj = null
+let unsubPay = null
 const importMsg = ref('')
 
-onMounted(() => {
+onMounted(async () => {
   store.startListening()
+  // 加载合同数据
+  try {
+    contractData.value = await getContract()
+    contractError.value = false
+  } catch (e) {
+    console.warn('合同数据加载失败:', e.message)
+    contractError.value = true
+  } finally {
+    contractLoading.value = false
+  }
+  // 不管加载是否成功，都订阅实时数据
+  unsubAdj = subscribeAdjustments(data => { contractAdjustments.value = data })
+  unsubPay = subscribePayments(data => { contractPayments.value = data })
 })
 
 onUnmounted(() => {
   store.stopListening()
+  if (unsubAdj) unsubAdj()
+  if (unsubPay) unsubPay()
 })
 
 // 跳转到项目列表并筛选

@@ -179,6 +179,16 @@
         <span class="text-white font-medium">查看全部项目清单 →</span>
       </div>
 
+      <!-- 合同与付款管理 -->
+      <div @click="$router.push('/contract')"
+        class="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer hover:bg-gray-50 flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-medium text-gray-700">合同与付款管理</h2>
+          <p class="text-xs text-gray-400 mt-0.5">合同概览、调整记录、付款记录</p>
+        </div>
+        <span class="text-gray-400">→</span>
+      </div>
+
       <!-- 数据导出备份 -->
       <div @click="$router.push('/export')"
         class="bg-white rounded-xl border border-gray-200 px-4 py-4 cursor-pointer hover:bg-gray-50 flex items-center justify-between">

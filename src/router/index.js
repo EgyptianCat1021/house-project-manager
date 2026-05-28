@@ -4,6 +4,7 @@ import ProjectsView from '../views/ProjectsView.vue'
 import AddProjectView from '../views/AddProjectView.vue'
 import ProjectDetailView from '../views/ProjectDetailView.vue'
 import ExportView from '../views/ExportView.vue'
+import ContractView from '../views/ContractView.vue'
 import { auth } from '../firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 
@@ -36,6 +37,13 @@ const routes = [
     path: '/export',
     name: 'Export',
     component: ExportView,
+    meta: { requiresAuth: true }
+  }
+  ,
+  {
+    path: '/contract',
+    name: 'Contract',
+    component: ContractView,
     meta: { requiresAuth: true }
   }
 ]

@@ -24,7 +24,7 @@
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
         </svg>
-        <span>{{ loading ? '登录中...' : '使用 Google 账号登录' }}</span>
+        <span>{{ loading ? '跳转中...' : '使用 Google 账号登录' }}</span>
       </button>
       <p class="text-center text-xs text-gray-400 mt-6">
         登录后数据将自动在 Mac 和 iPhone 之间同步
@@ -34,30 +34,38 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { signInWithPopup } from 'firebase/auth'
+import { ref, onMounted } from 'vue'
+import { signInWithRedirect, getRedirectResult } from 'firebase/auth'
 import { auth, googleProvider } from '../firebase/config.js'
 
 const loading = ref(false)
 const errorMsg = ref('')
 
+onMounted(async () => {
+  // 处理 redirect 登录回调
+  try {
+    loading.value = true
+    const result = await getRedirectResult(auth)
+    if (result?.user) {
+      window.location.hash = '/'
+    }
+  } catch (error) {
+    console.error('登录回调失败:', error)
+    errorMsg.value = '登录失败：' + error.code
+  } finally {
+    loading.value = false
+  }
+})
+
 async function handleGoogleLogin() {
   loading.value = true
   errorMsg.value = ''
   try {
-    await signInWithPopup(auth, googleProvider)
-    window.location.hash = '/'
-    window.location.reload()
+    await signInWithRedirect(auth, googleProvider)
+    // redirect 会跳走，不会执行到这里
   } catch (error) {
     console.error('登录失败:', error)
-    if (error.code === 'auth/popup-closed-by-user') {
-      errorMsg.value = '登录窗口已关闭，请重试。'
-    } else if (error.code === 'auth/popup-blocked') {
-      errorMsg.value = '弹出窗口被浏览器阻止，请点击地址栏右侧允许弹出窗口。'
-    } else {
-      errorMsg.value = '登录失败：' + error.code
-    }
-  } finally {
+    errorMsg.value = '登录失败：' + error.code
     loading.value = false
   }
 }

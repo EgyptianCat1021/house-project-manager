@@ -1,201 +1,252 @@
 <template>
   <div class="min-h-screen bg-gray-50">
 
-    <!-- 顶部导航栏 -->
+    <!-- 顶部 -->
     <header class="bg-white border-b border-gray-200 sticky top-0 z-10">
-      <div class="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <span class="text-lg">🏠</span>
-          <span class="font-semibold text-gray-900 text-sm sm:text-base">自建房收尾项目管理</span>
+      <div class="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div>
+          <h1 class="font-semibold text-gray-900">🏠 自建房收尾项目管理</h1>
         </div>
         <div class="flex items-center gap-3">
-          <div class="flex items-center gap-2">
-            <img v-if="user?.photoURL" :src="user.photoURL" :alt="user.displayName" class="w-7 h-7 rounded-full" />
-            <div v-else class="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium">
-              {{ userInitial }}
-            </div>
-            <span class="hidden sm:block text-sm text-gray-600 max-w-[160px] truncate">
-              {{ user?.displayName || user?.email }}
-            </span>
-          </div>
-          <button @click="handleLogout" class="text-sm text-gray-500 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-            退出
-          </button>
+          <span class="text-sm text-gray-500">{{ user?.displayName }}</span>
+          <button @click="logout" class="text-sm text-gray-400 hover:text-gray-600">退出</button>
         </div>
       </div>
     </header>
 
-    <main class="max-w-4xl mx-auto px-4 py-6">
+    <!-- 加载中 -->
+    <div v-if="store.loading" class="flex justify-center py-16">
+      <div class="text-gray-400 text-sm">加载中...</div>
+    </div>
 
-      <!-- 欢迎卡片 -->
-      <div class="bg-white rounded-2xl border border-gray-200 p-5 mb-5">
-        <h2 class="text-base font-semibold text-gray-900 mb-1">你好，{{ user?.displayName || '用户' }} 👋</h2>
-        <p class="text-sm text-gray-500">数据自动同步到你的所有设备。</p>
+    <div v-else class="max-w-2xl mx-auto px-4 py-4 space-y-4">
+
+      <!-- 欢迎语 -->
+      <div class="bg-white rounded-xl border border-gray-200 px-4 py-3">
+        <p class="text-gray-700">你好，{{ user?.displayName }} 👋</p>
+        <p class="text-xs text-gray-400 mt-0.5">数据自动同步到你的所有设备。</p>
       </div>
 
-      <!-- 功能入口 -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
-
-        <button
-          @click="$router.push('/projects')"
-          class="bg-white rounded-2xl border border-gray-200 p-5 text-left hover:border-blue-300 hover:shadow-sm transition-all"
-        >
-          <div class="text-2xl mb-2">📋</div>
-          <h3 class="font-semibold text-gray-900 mb-1">项目清单</h3>
-          <p class="text-sm text-gray-500">管理所有待完成的施工和采购项目</p>
-          <div class="mt-3 text-xs text-blue-500 font-medium">点击进入 →</div>
-        </button>
-
-        <div class="bg-white rounded-2xl border border-gray-200 p-5 opacity-60">
-          <div class="text-2xl mb-2">📊</div>
-          <h3 class="font-semibold text-gray-900 mb-1">项目看板</h3>
-          <p class="text-sm text-gray-500">查看各区域和责任方的进度统计</p>
-          <div class="mt-3 text-xs text-gray-400">第五阶段开发中</div>
+      <!-- 核心数据：第一排 -->
+      <div class="grid grid-cols-3 gap-3">
+        <div class="bg-white rounded-xl border border-gray-200 p-3 text-center">
+          <div class="text-2xl font-bold text-gray-900">{{ stats.totalProjects }}</div>
+          <div class="text-xs text-gray-400 mt-1">总项目</div>
         </div>
-
-        <div class="bg-white rounded-2xl border border-gray-200 p-5 opacity-60">
-          <div class="text-2xl mb-2">📐</div>
-          <h3 class="font-semibold text-gray-900 mb-1">尺寸测量记录</h3>
-          <p class="text-sm text-gray-500">记录窗帘、水槽等关键尺寸</p>
-          <div class="mt-3 text-xs text-gray-400">第三阶段开发中</div>
+        <div @click="goFilter('status', '')"
+          class="bg-white rounded-xl border border-orange-200 p-3 text-center cursor-pointer hover:bg-orange-50">
+          <div class="text-2xl font-bold text-orange-500">{{ stats.unfinishedCount }}</div>
+          <div class="text-xs text-gray-400 mt-1">未完成</div>
         </div>
-
-        <div class="bg-white rounded-2xl border border-gray-200 p-5 opacity-60">
-          <div class="text-2xl mb-2">💬</div>
-          <h3 class="font-semibold text-gray-900 mb-1">沟通记录</h3>
-          <p class="text-sm text-gray-500">记录与施工方、供应商的沟通结果</p>
-          <div class="mt-3 text-xs text-gray-400">第三阶段开发中</div>
+        <div class="bg-white rounded-xl border border-green-200 p-3 text-center">
+          <div class="text-2xl font-bold text-green-500">{{ stats.completedCount }}</div>
+          <div class="text-xs text-gray-400 mt-1">已完成</div>
         </div>
-
       </div>
 
-      <!-- 数据初始化卡片 -->
-      <div class="bg-white rounded-2xl border border-gray-200 p-5">
-        <h3 class="font-semibold text-gray-900 mb-1">数据初始化</h3>
-        <p class="text-sm text-gray-500 mb-4">首次使用时，可以一键导入 Excel 里的 100 条初始项目数据。</p>
-
-        <!-- 状态显示 -->
-        <div v-if="importStatus" :class="[
-          'mb-4 p-3 rounded-xl text-sm',
-          importStatus.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' :
-          importStatus.type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
-          'bg-blue-50 text-blue-700 border border-blue-200'
-        ]">
-          {{ importStatus.message }}
+      <!-- 重点关注 -->
+      <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
+          <h2 class="text-sm font-medium text-gray-700">重点关注</h2>
         </div>
+        <div class="grid grid-cols-2 divide-x divide-y divide-gray-100">
 
-        <!-- 按钮组 -->
-        <div class="flex flex-wrap gap-2">
-          <button
-            @click="handleImportMissing"
-            :disabled="importing"
-            class="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {{ importing ? '导入中...' : '仅导入缺失项' }}
+          <div @click="goFilter('priority', '高')"
+            class="p-4 cursor-pointer hover:bg-gray-50 flex items-center justify-between">
+            <span class="text-sm text-gray-600">🔴 高优先级未完成</span>
+            <span class="text-lg font-bold text-red-500">{{ stats.highPriorityUnfinished }}</span>
+          </div>
+
+          <div @click="goFilterStatus('有问题需协调')"
+            class="p-4 cursor-pointer hover:bg-gray-50 flex items-center justify-between">
+            <span class="text-sm text-gray-600">⚠️ 有问题需协调</span>
+            <span class="text-lg font-bold text-red-400">{{ stats.issueCount }}</span>
+          </div>
+
+          <div @click="goFilterStatus('待采购')"
+            class="p-4 cursor-pointer hover:bg-gray-50 flex items-center justify-between">
+            <span class="text-sm text-gray-600">🛒 待采购</span>
+            <span class="text-lg font-bold text-blue-500">{{ stats.pendingPurchase }}</span>
+          </div>
+
+          <div @click="goFilterStatus('待施工')"
+            class="p-4 cursor-pointer hover:bg-gray-50 flex items-center justify-between">
+            <span class="text-sm text-gray-600">🔨 待施工</span>
+            <span class="text-lg font-bold text-purple-500">{{ stats.pendingConstruction }}</span>
+          </div>
+
+          <div @click="goFilterStatus('待验收')"
+            class="p-4 cursor-pointer hover:bg-gray-50 flex items-center justify-between">
+            <span class="text-sm text-gray-600">✅ 待验收</span>
+            <span class="text-lg font-bold text-indigo-500">{{ stats.pendingAcceptance }}</span>
+          </div>
+
+          <div @click="goFilterStatus('待测量/确认')"
+            class="p-4 cursor-pointer hover:bg-gray-50 flex items-center justify-between">
+            <span class="text-sm text-gray-600">📐 待测量/确认</span>
+            <span class="text-lg font-bold text-yellow-500">{{ stats.pendingMeasurement }}</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 本周截止 -->
+      <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+          <h2 class="text-sm font-medium text-gray-700">本周截止事项</h2>
+          <span class="text-xs text-gray-400">{{ stats.dueThisWeek }} 项</span>
+        </div>
+        <div v-if="stats.dueThisWeek === 0" class="px-4 py-6 text-center text-sm text-gray-400">
+          本周暂无截止事项 🎉
+        </div>
+        <div v-else class="divide-y divide-gray-100">
+          <div v-for="p in stats.dueThisWeekList" :key="p.id"
+            @click="$router.push(`/projects/${p.id}`)"
+            class="px-4 py-3 cursor-pointer hover:bg-gray-50 flex items-center justify-between">
+            <div>
+              <div class="text-sm text-gray-800">{{ p.name }}</div>
+              <div class="text-xs text-gray-400 mt-0.5">{{ p.area }} · {{ p.responsible }}</div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs text-orange-500 font-medium">{{ p.plannedDate }}</div>
+              <div :class="['text-xs mt-0.5 px-2 py-0.5 rounded-full', STATUS_COLORS[p.status] || 'bg-gray-100 text-gray-500']">
+                {{ p.status }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 按责任方统计 -->
+      <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
+          <h2 class="text-sm font-medium text-gray-700">按责任方（未完成）</h2>
+        </div>
+        <div class="divide-y divide-gray-100">
+          <div v-for="(count, name) in stats.byResponsible" :key="name"
+            @click="goFilter('responsible', name)"
+            class="px-4 py-3 cursor-pointer hover:bg-gray-50 flex items-center justify-between">
+            <span class="text-sm text-gray-700">{{ name }}</span>
+            <div class="flex items-center gap-2">
+              <div class="h-2 rounded-full bg-blue-200 overflow-hidden" style="width:80px">
+                <div class="h-2 bg-blue-500 rounded-full"
+                  :style="{ width: (count / stats.unfinishedCount * 100) + '%' }">
+                </div>
+              </div>
+              <span class="text-sm font-medium text-gray-700 w-6 text-right">{{ count }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 按区域统计 -->
+      <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
+          <h2 class="text-sm font-medium text-gray-700">按区域（未完成）</h2>
+        </div>
+        <div class="divide-y divide-gray-100">
+          <div v-for="(count, name) in stats.byArea" :key="name"
+            @click="goFilter('area', name)"
+            class="px-4 py-3 cursor-pointer hover:bg-gray-50 flex items-center justify-between">
+            <span class="text-sm text-gray-700">{{ name }}</span>
+            <div class="flex items-center gap-2">
+              <div class="h-2 rounded-full bg-purple-200 overflow-hidden" style="width:80px">
+                <div class="h-2 bg-purple-500 rounded-full"
+                  :style="{ width: (count / stats.unfinishedCount * 100) + '%' }">
+                </div>
+              </div>
+              <span class="text-sm font-medium text-gray-700 w-6 text-right">{{ count }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 进入项目清单 -->
+      <div @click="$router.push('/projects')"
+        class="bg-blue-500 rounded-xl p-4 text-center cursor-pointer hover:bg-blue-600 transition-colors">
+        <span class="text-white font-medium">查看全部项目清单 →</span>
+      </div>
+
+      <!-- 数据初始化 -->
+      <div class="bg-white rounded-xl border border-gray-200 p-4">
+        <h2 class="text-sm font-medium text-gray-700 mb-1">数据初始化</h2>
+        <p class="text-xs text-gray-400 mb-3">首次使用时，可以一键导入 Excel 里的 100 条初始项目数据。</p>
+        <div class="flex gap-2">
+          <button @click="importMissing"
+            class="flex-1 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+            仅导入缺失项
           </button>
-          <button
-            @click="showClearConfirm = true"
-            :disabled="importing"
-            class="px-4 py-2 text-sm border border-red-300 text-red-500 rounded-lg hover:bg-red-50 disabled:opacity-50"
-          >
+          <button @click="reimportAll"
+            class="flex-1 py-2 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">
             清空后重新导入
           </button>
         </div>
-
-        <p class="text-xs text-gray-400 mt-3">
-          · 仅导入缺失项：按序号比对，只补充数据库中没有的项目<br>
-          · 清空后重新导入：删除所有现有数据，重新导入全部100条
-        </p>
+        <p v-if="importMsg" class="text-xs text-green-600 mt-2 text-center">{{ importMsg }}</p>
       </div>
 
-    </main>
-
-    <!-- 清空确认弹窗 -->
-    <div v-if="showClearConfirm" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-      <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
-        <h3 class="font-semibold text-gray-900 mb-2">⚠️ 确认清空并重新导入</h3>
-        <p class="text-sm text-gray-500 mb-6">
-          这会删除数据库中的<strong>所有现有项目数据</strong>，然后重新导入初始100条数据。<br><br>
-          此操作不可恢复，请确认。
-        </p>
-        <div class="flex gap-3">
-          <button @click="showClearConfirm = false" class="flex-1 py-2 text-sm border border-gray-300 rounded-lg">取消</button>
-          <button @click="handleClearAndImport" :disabled="importing" class="flex-1 py-2 text-sm text-white bg-red-500 rounded-lg disabled:opacity-50">
-            {{ importing ? '处理中...' : '确认清空并导入' }}
-          </button>
-        </div>
-      </div>
+      <div class="h-8"></div>
     </div>
-
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { signOut, onAuthStateChanged } from 'firebase/auth'
-import { auth } from '../firebase/config.js'
-import { batchImportProjects, clearAllProjects, getProjectCount } from '../firebase/projects.js'
-import { INITIAL_PROJECTS } from '../data/initialData.js'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useProjectsStore } from '../stores/projects'
+import { useCurrentUser } from '../composables/useCurrentUser'
+import { getAuth, signOut } from 'firebase/auth'
+import { STATUS_COLORS } from '../constants/options'
+import { INITIAL_PROJECTS } from '../data/initialData'
+import { addProject, fetchProjects, deleteProject } from '../firebase/projects'
 
-const user = ref(null)
-const importing = ref(false)
-const importStatus = ref(null)
-const showClearConfirm = ref(false)
+const router = useRouter()
+const store = useProjectsStore()
+const { user } = useCurrentUser()
+const stats = computed(() => store.stats)
+const importMsg = ref('')
 
-onAuthStateChanged(auth, (firebaseUser) => {
-  user.value = firebaseUser
+onMounted(() => {
+  store.startListening()
 })
 
-const userInitial = computed(() => {
-  const name = user.value?.displayName || user.value?.email || '?'
-  return name.charAt(0).toUpperCase()
+onUnmounted(() => {
+  store.stopListening()
 })
 
-async function handleLogout() {
-  await signOut(auth)
-  window.location.href = window.location.origin + window.location.pathname
+// 跳转到项目列表并筛选
+function goFilter(key, value) {
+  store.clearFilters()
+  if (value) store.setFilter(key, value)
+  router.push('/projects')
 }
 
-// 仅导入缺失项
-async function handleImportMissing() {
-  importing.value = true
-  importStatus.value = { type: 'info', message: '正在检查数据库...' }
-  try {
-    const { fetchProjects } = await import('../firebase/projects.js')
-    const existing = await fetchProjects()
-    const existingSeqs = new Set(existing.map(p => p.seq))
+function goFilterStatus(status) {
+  goFilter('status', status)
+}
 
-    const missing = INITIAL_PROJECTS.filter(p => !existingSeqs.has(p.seq))
+// 退出登录
+async function logout() {
+  const auth = getAuth()
+  await signOut(auth)
+  router.push('/login')
+}
 
-    if (missing.length === 0) {
-      importStatus.value = { type: 'success', message: '✅ 数据库已有全部100条数据，无需导入。' }
-      return
-    }
-
-    importStatus.value = { type: 'info', message: `正在导入 ${missing.length} 条缺失数据...` }
-    await batchImportProjects(missing)
-    importStatus.value = { type: 'success', message: `✅ 成功导入 ${missing.length} 条数据！` }
-  } catch (e) {
-    importStatus.value = { type: 'error', message: '❌ 导入失败：' + e.message }
-  } finally {
-    importing.value = false
-  }
+// 导入缺失项
+async function importMissing() {
+  const existing = await fetchProjects()
+  const existingSeqs = new Set(existing.map(p => p.seq))
+  const missing = INITIAL_PROJECTS.filter(p => !existingSeqs.has(p.seq))
+  for (const p of missing) await addProject(p)
+  importMsg.value = `✅ 已导入 ${missing.length} 条缺失数据！`
+  setTimeout(() => importMsg.value = '', 3000)
 }
 
 // 清空后重新导入
-async function handleClearAndImport() {
-  showClearConfirm.value = false
-  importing.value = true
-  importStatus.value = { type: 'info', message: '正在清空数据库...' }
-  try {
-    await clearAllProjects()
-    importStatus.value = { type: 'info', message: '正在导入100条初始数据...' }
-    await batchImportProjects(INITIAL_PROJECTS)
-    importStatus.value = { type: 'success', message: '✅ 已清空并重新导入全部100条数据！' }
-  } catch (e) {
-    importStatus.value = { type: 'error', message: '❌ 操作失败：' + e.message }
-  } finally {
-    importing.value = false
-  }
+async function reimportAll() {
+  const existing = await fetchProjects()
+  for (const p of existing) await deleteProject(p.id)
+  for (const p of INITIAL_PROJECTS) await addProject(p)
+  importMsg.value = '✅ 已清空并重新导入全部100条数据！'
+  setTimeout(() => importMsg.value = '', 3000)
 }
 </script>

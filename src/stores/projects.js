@@ -72,29 +72,71 @@ export const useProjectsStore = defineStore('projects', () => {
     })
   })
 
-  // 统计数据（用于看板）
+  // 本周截止判断
+  function getDueThisWeek(projectList) {
+    try {
+      const now = new Date()
+      const startOfWeek = new Date(now)
+      startOfWeek.setHours(0, 0, 0, 0)
+      startOfWeek.setDate(now.getDate() - now.getDay() + 1) // 周一
+      const endOfWeek = new Date(startOfWeek)
+      endOfWeek.setDate(startOfWeek.getDate() + 6) // 周日
+      endOfWeek.setHours(23, 59, 59, 999)
+
+      return projectList.filter(p => {
+        if (!p.plannedDate) return false
+        try {
+          const d = new Date(p.plannedDate)
+          if (isNaN(d.getTime())) return false
+          return d >= startOfWeek && d <= endOfWeek && p.status !== '已完成'
+        } catch {
+          return false
+        }
+      })
+    } catch {
+      return []
+    }
+  }
+
+  // 统计数据
   const stats = computed(() => {
-    const total = projects.value.length
-    const completed = projects.value.filter(p => p.status === '已完成').length
-    const highPriority = projects.value.filter(p => p.priority === '高' && p.status !== '已完成').length
-    const needCoordinate = projects.value.filter(p => p.status === '有问题需协调').length
+    const all = projects.value
+    const unfinished = all.filter(p => p.status !== '已完成')
+    const completed = all.filter(p => p.status === '已完成')
 
-    const byStatus = {}
-    projects.value.forEach(p => {
-      byStatus[p.status] = (byStatus[p.status] || 0) + 1
-    })
-
+    // 按责任方统计未完成
     const byResponsible = {}
-    projects.value.forEach(p => {
-      byResponsible[p.responsible] = (byResponsible[p.responsible] || 0) + 1
+    unfinished.forEach(p => {
+      if (p.responsible) {
+        byResponsible[p.responsible] = (byResponsible[p.responsible] || 0) + 1
+      }
     })
 
+    // 按区域统计未完成
     const byArea = {}
-    projects.value.forEach(p => {
-      byArea[p.area] = (byArea[p.area] || 0) + 1
+    unfinished.forEach(p => {
+      if (p.area) {
+        byArea[p.area] = (byArea[p.area] || 0) + 1
+      }
     })
 
-    return { total, completed, highPriority, needCoordinate, byStatus, byResponsible, byArea }
+    const dueThisWeekList = getDueThisWeek(all)
+
+    return {
+      totalProjects: all.length,
+      completedCount: completed.length,
+      unfinishedCount: unfinished.length,
+      highPriorityUnfinished: unfinished.filter(p => p.priority === '高').length,
+      pendingMeasurement: all.filter(p => p.status === '待测量/确认').length,
+      pendingPurchase: all.filter(p => p.status === '待采购').length,
+      pendingConstruction: all.filter(p => p.status === '待施工').length,
+      pendingAcceptance: all.filter(p => p.status === '待验收').length,
+      issueCount: all.filter(p => p.status === '有问题需协调').length,
+      dueThisWeek: dueThisWeekList.length,
+      dueThisWeekList,
+      byResponsible,
+      byArea
+    }
   })
 
   return {

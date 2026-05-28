@@ -43,21 +43,30 @@
         <button v-if="hasFilters" @click="clearFilters" class="px-2 py-1.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg">清空</button>
       </div>
 
-      <!-- 特殊筛选标签 -->
-      <div v-if="activeFilter" class="max-w-5xl mx-auto px-4 pb-2 flex items-center gap-2">
-        <span class="text-xs px-2 py-1 rounded-full font-medium"
-          :class="{
-            'bg-red-100 text-red-700': activeFilter === 'overdue',
-            'bg-orange-100 text-orange-700': activeFilter === 'dueThisWeek',
-            'bg-yellow-100 text-yellow-700': activeFilter === 'noPlanDate'
-          }">
-          {{ activeFilterLabel }}
-        </span>
-        <button @click="clearSpecialFilter" class="text-xs text-gray-400 hover:text-gray-600">✕ 清除</button>
-      </div>
+      <!-- 排序 + 特殊筛选标签 + 显示已完成开关 -->
+      <div class="max-w-5xl mx-auto px-4 pb-3 flex flex-wrap items-center gap-2">
+        <!-- 排序下拉 -->
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs text-gray-400 shrink-0">排序：</span>
+          <select v-model="sortBy" class="px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400 bg-white">
+            <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+          </select>
+        </div>
 
-      <!-- 显示已完成开关 -->
-      <div class="max-w-5xl mx-auto px-4 pb-3 flex items-center gap-2">
+        <!-- 特殊筛选标签 -->
+        <template v-if="activeFilter">
+          <span class="text-xs px-2 py-1 rounded-full font-medium"
+            :class="{
+              'bg-red-100 text-red-700': activeFilter === 'overdue',
+              'bg-orange-100 text-orange-700': activeFilter === 'dueThisWeek',
+              'bg-yellow-100 text-yellow-700': activeFilter === 'noPlanDate'
+            }">
+            {{ activeFilterLabel }}
+          </span>
+          <button @click="clearSpecialFilter" class="text-xs text-gray-400 hover:text-gray-600">✕ 清除</button>
+        </template>
+
+        <!-- 显示已完成开关 -->
         <button @click="toggleHideCompleted" :class="['flex items-center gap-1.5 px-3 py-1 text-xs rounded-full border transition-colors', !store.filters.hideCompleted ? 'bg-green-50 border-green-300 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-300']">
           <span>{{ store.filters.hideCompleted ? '☑ 隐藏已完成' : '✅ 显示已完成' }}</span>
         </button>
@@ -132,6 +141,16 @@ const filterResponsible = ref('')
 const filterArea = ref('')
 const filterCategory = ref('')
 const activeFilter = ref('')
+const sortBy = ref('priority_smart')
+
+const sortOptions = [
+  { value: 'priority_smart', label: '重点优先' },
+  { value: 'planned_date', label: '计划日期最近' },
+  { value: 'priority_desc', label: '优先级高到低' },
+  { value: 'area', label: '区域' },
+  { value: 'responsible', label: '责任方' },
+  { value: 'seq', label: '原始序号' },
+]
 
 const completedCount = computed(() => store.projects.filter(p => p.status === '已完成').length)
 const hasFilters = computed(() => keyword.value || filterStatus.value || filterPriority.value || filterResponsible.value || filterArea.value || filterCategory.value)
@@ -143,7 +162,7 @@ const activeFilterLabel = computed(() => {
   return ''
 })
 
-// 日期工具函数
+// 日期工具
 const today = new Date()
 today.setHours(0, 0, 0, 0)
 
@@ -186,14 +205,62 @@ function isNoPlanDate(p) {
   return p.priority === '高' && !p.plannedDate
 }
 
-// 基于 activeFilter 对 filteredProjects 做二次过滤
+// 重点优先打分
+const PRIORITY_SCORE = { '高': 3, '中': 4, '低': 5 }
+function smartScore(p) {
+  if (isOverdue(p)) return 0
+  if (isDueThisWeek(p)) return 1
+  if (isNoPlanDate(p)) return 2
+  return PRIORITY_SCORE[p.priority] ?? 6
+}
+
+// 排序函数
+function sortProjects(list) {
+  const arr = [...list]
+  if (sortBy.value === 'priority_smart') {
+    return arr.sort((a, b) => {
+      const diff = smartScore(a) - smartScore(b)
+      if (diff !== 0) return diff
+      // 同分时按 seq 升序
+      return (Number(a.seq) || 0) - (Number(b.seq) || 0)
+    })
+  }
+  if (sortBy.value === 'planned_date') {
+    return arr.sort((a, b) => {
+      const da = safeDate(a.plannedDate)
+      const db = safeDate(b.plannedDate)
+      if (da && db) return da - db
+      if (da) return -1
+      if (db) return 1
+      return (Number(a.seq) || 0) - (Number(b.seq) || 0)
+    })
+  }
+  if (sortBy.value === 'priority_desc') {
+    return arr.sort((a, b) => {
+      const diff = (PRIORITY_SCORE[a.priority] ?? 6) - (PRIORITY_SCORE[b.priority] ?? 6)
+      if (diff !== 0) return diff
+      return (Number(a.seq) || 0) - (Number(b.seq) || 0)
+    })
+  }
+  if (sortBy.value === 'area') {
+    return arr.sort((a, b) => (a.area || '').localeCompare(b.area || '', 'zh'))
+  }
+  if (sortBy.value === 'responsible') {
+    return arr.sort((a, b) => (a.responsible || '').localeCompare(b.responsible || '', 'zh'))
+  }
+  if (sortBy.value === 'seq') {
+    return arr.sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0))
+  }
+  return arr
+}
+
+// 最终展示列表：筛选 → 特殊filter → 排序
 const displayedProjects = computed(() => {
-  const base = store.filteredProjects
-  if (!activeFilter.value) return base
-  if (activeFilter.value === 'overdue') return base.filter(isOverdue)
-  if (activeFilter.value === 'dueThisWeek') return base.filter(isDueThisWeek)
-  if (activeFilter.value === 'noPlanDate') return base.filter(isNoPlanDate)
-  return base
+  let base = store.filteredProjects
+  if (activeFilter.value === 'overdue') base = base.filter(isOverdue)
+  else if (activeFilter.value === 'dueThisWeek') base = base.filter(isDueThisWeek)
+  else if (activeFilter.value === 'noPlanDate') base = base.filter(isNoPlanDate)
+  return sortProjects(base)
 })
 
 function toggleHideCompleted() {
@@ -225,7 +292,6 @@ onMounted(() => {
   }
   if (route.query.filter) {
     activeFilter.value = route.query.filter
-    // 特殊筛选时自动显示已完成（逾期可能包含已完成之外的）
     if (route.query.filter !== 'noPlanDate') {
       store.setFilter('hideCompleted', false)
     }

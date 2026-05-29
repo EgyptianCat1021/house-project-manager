@@ -147,6 +147,18 @@
           <span class="text-sm text-gray-500">共 {{ payments.length }} 条，合计 ¥{{ formatAmount(paymentsTotal) }}</span>
           <button @click="openPaymentForm()" class="px-3 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600">+ 新增</button>
         </div>
+        <!-- 导出按钮组 -->
+        <div class="flex flex-wrap gap-2 mb-4">
+          <button @click="exportPayments" class="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+            📥 导出付款记录
+          </button>
+          <button @click="exportAdjustments" class="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+            📥 导出调整记录
+          </button>
+          <button @click="exportSummary" class="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+            📥 导出付款汇总
+          </button>
+        </div>
 
         <div v-if="payments.length === 0" class="text-center py-16 text-gray-400">
           <div class="text-4xl mb-3">💳</div>
@@ -460,4 +472,87 @@ onUnmounted(() => {
   if (unsubAdj) unsubAdj()
   if (unsubPay) unsubPay()
 })
+
+// ── CSV 导出工具 ──
+function escapeCSV(val) {
+  if (val === null || val === undefined) return ''
+  const str = String(val)
+  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+    return '"' + str.replace(/"/g, '""') + '"'
+  }
+  return str
+}
+
+function rowToCSV(arr) {
+  return arr.map(escapeCSV).join(',')
+}
+
+function downloadCSV(filename, rows) {
+  const BOM = '\uFEFF'
+  const content = BOM + rows.map(r => rowToCSV(r)).join('\r\n')
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function todayStr() {
+  return new Date().toISOString().split('T')[0]
+}
+
+function exportPayments() {
+  const header = ['付款日期', '金额', '付款节点', '支付方式', '备注', '是否已核对', '创建时间', '更新时间']
+  const rows = [header, ...payments.value.map(p => [
+    p.paymentDate || '',
+    p.amount || 0,
+    p.paymentStage || '',
+    p.method || '',
+    p.reason || '',
+    p.verified ? '是' : '否',
+    p.createdAt ? new Date(p.createdAt).toLocaleString('zh-CN') : '',
+    p.updatedAt ? new Date(p.updatedAt).toLocaleString('zh-CN') : '',
+  ])]
+  downloadCSV(`payments-${todayStr()}.csv`, rows)
+  showToast('付款记录已导出')
+}
+
+function exportAdjustments() {
+  const header = ['变更事项', '原合同内容', '变更后内容', '调整金额', '类型', '状态', '是否影响付款', '责任方', '确认日期', '备注', '创建时间', '更新时间']
+  const rows = [header, ...adjustments.value.map(a => [
+    a.title || '',
+    a.originalContent || '',
+    a.changedContent || '',
+    a.amount || 0,
+    a.type || '',
+    a.status || '',
+    a.affectsPayment ? '是' : '否',
+    a.responsibleParty || '',
+    a.agreementDate || '',
+    a.notes || '',
+    a.createdAt ? new Date(a.createdAt).toLocaleString('zh-CN') : '',
+    a.updatedAt ? new Date(a.updatedAt).toLocaleString('zh-CN') : '',
+  ])]
+  downloadCSV(`contract-adjustments-${todayStr()}.csv`, rows)
+  showToast('调整记录已导出')
+}
+
+function exportSummary() {
+  const header = ['项目', '金额']
+  const rows = [
+    header,
+    ['原合同金额', contract.value?.originalAmount || 0],
+    ['合同调整金额合计', totalAdjustment.value],
+    ['调整后合同金额', adjustedAmount.value],
+    ['已支付金额', totalPaid.value],
+    ['尚未支付金额', unpaidAmount.value],
+    ['付款记录数量', payments.value.length],
+    ['合同调整记录数量', adjustments.value.length],
+    ['导出时间', new Date().toLocaleString('zh-CN')],
+  ]
+  downloadCSV(`contract-summary-${todayStr()}.csv`, rows)
+  showToast('付款汇总已导出')
+}
 </script>

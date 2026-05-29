@@ -38,8 +38,7 @@ const routes = [
     name: 'Export',
     component: ExportView,
     meta: { requiresAuth: true }
-  }
-  ,
+  },
   {
     path: '/contract',
     name: 'Contract',
@@ -53,10 +52,24 @@ const router = createRouter({
   routes
 })
 
+// 带 3 秒超时的 Auth 检查
 const getCurrentUser = () => new Promise((resolve) => {
+  // 超时保险：3秒后当未登录处理，不让页面永远卡住
+  const timer = setTimeout(() => {
+    console.warn('Auth state check timeout, continue as guest')
+    resolve(null)
+  }, 3000)
+
   const unsubscribe = onAuthStateChanged(auth, (user) => {
+    clearTimeout(timer)
     unsubscribe()
     resolve(user)
+  }, (error) => {
+    // Auth 报错也不崩溃，当未登录处理
+    console.warn('Auth state check error:', error)
+    clearTimeout(timer)
+    unsubscribe()
+    resolve(null)
   })
 })
 

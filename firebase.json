@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "house-project-manager",
     "public": "dist",
     "ignore": [
       "firebase.json",

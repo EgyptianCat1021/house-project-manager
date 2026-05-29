@@ -5,10 +5,16 @@ import AddProjectView from '../views/AddProjectView.vue'
 import ProjectDetailView from '../views/ProjectDetailView.vue'
 import ExportView from '../views/ExportView.vue'
 import ContractView from '../views/ContractView.vue'
+import LoginView from '../views/LoginView.vue'
 import { auth } from '../firebase/config'
 import { onAuthStateChanged } from 'firebase/auth'
 
 const routes = [
+  {
+    path: '/login',
+    name: 'Login',
+    component: LoginView
+  },
   {
     path: '/',
     name: 'Home',
@@ -52,31 +58,37 @@ const router = createRouter({
   routes
 })
 
-// 带 3 秒超时的 Auth 检查
-const getCurrentUser = () => new Promise((resolve) => {
-  // 超时保险：3秒后当未登录处理，不让页面永远卡住
-  const timer = setTimeout(() => {
-    console.warn('Auth state check timeout, continue as guest')
-    resolve(null)
-  }, 3000)
+// 等待 Firebase Auth 初始化完成（只等一次）
+let authReady = false
+let currentUser = null
 
+const authReadyPromise = new Promise((resolve) => {
   const unsubscribe = onAuthStateChanged(auth, (user) => {
-    clearTimeout(timer)
+    currentUser = user
+    authReady = true
     unsubscribe()
     resolve(user)
-  }, (error) => {
-    // Auth 报错也不崩溃，当未登录处理
-    console.warn('Auth state check error:', error)
-    clearTimeout(timer)
-    unsubscribe()
-    resolve(null)
   })
 })
 
+// 监听后续登录/登出变化
+onAuthStateChanged(auth, (user) => {
+  currentUser = user
+})
+
 router.beforeEach(async (to) => {
+  // 等 Auth 初始化完成（无超时，等到为止）
+  if (!authReady) {
+    await authReadyPromise
+  }
+
   if (to.meta.requiresAuth) {
-    const user = await getCurrentUser()
-    if (!user) return { path: '/login' }
+    if (!currentUser) return { name: 'Login' }
+  }
+
+  // 已登录时访问 /login，跳回首页
+  if (to.name === 'Login' && currentUser) {
+    return { name: 'Home' }
   }
 })
 

@@ -8,9 +8,6 @@
       </div>
       <div v-if="errorMsg" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
         {{ errorMsg }}
-        <div v-if="showManualHint" class="mt-2 text-xs text-gray-500">
-          请在浏览器地址栏允许弹出窗口，或尝试使用 Chrome 浏览器打开。
-        </div>
       </div>
       <button
         @click="handleGoogleLogin"
@@ -38,60 +35,62 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth'
-import { auth, googleProvider } from '../firebase/config.js'
+import { useRouter } from 'vue-router'
+import { signInWithCredential, GoogleAuthProvider, onAuthStateChanged } from 'firebase/auth'
+import { auth } from '../firebase/config.js'
 
-const loading = ref(false)
+const router = useRouter()
+const loading = ref(true)
 const errorMsg = ref('')
-const showManualHint = ref(false)
 
-// 判断是否是 Safari
-function isSafari() {
-  const ua = navigator.userAgent
-  return /Safari/.test(ua) && !/Chrome/.test(ua)
+const CLIENT_ID = '761621589009-foggkfl9tj8beha81gft7j9ahp3r8ham.apps.googleusercontent.com'
+const REDIRECT_URI = 'https://house-project-manager.web.app/'
+
+function buildGoogleAuthUrl() {
+  const nonce = Math.random().toString(36).substring(2)
+  sessionStorage.setItem('oauth_nonce', nonce)
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    redirect_uri: REDIRECT_URI,
+    response_type: 'token id_token',
+    scope: 'openid email profile',
+    nonce: nonce,
+  })
+  return 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString()
 }
 
 onMounted(async () => {
-  // 处理 redirect 回调
-  try {
-    loading.value = true
-    const result = await getRedirectResult(auth)
-    if (result?.user) {
-      window.location.hash = '/'
+  // 检查 URL hash 里有没有 id_token（Google OAuth 回调）
+  const hash = window.location.hash
+  const hashParams = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash)
+  const idToken = hashParams.get('id_token')
+  const accessToken = hashParams.get('access_token')
+
+  if (idToken) {
+    try {
+      const credential = GoogleAuthProvider.credential(idToken, accessToken)
+      await signInWithCredential(auth, credential)
+      window.history.replaceState(null, '', window.location.pathname)
+      router.push({ name: 'Home' })
+      return
+    } catch (e) {
+      errorMsg.value = '登录失败：' + (e.code || e.message)
     }
-  } catch (e) {
-    console.warn('redirect result:', e)
-  } finally {
-    loading.value = false
+  } else {
+    // 检查是否已经登录
+    const user = await new Promise((resolve) => {
+      const unsub = onAuthStateChanged(auth, (u) => { unsub(); resolve(u) })
+    })
+    if (user) {
+      router.push({ name: 'Home' })
+      return
+    }
   }
+
+  loading.value = false
 })
 
-async function handleGoogleLogin() {
-  loading.value = true
-  errorMsg.value = ''
-  showManualHint.value = false
-
-  try {
-    if (isSafari()) {
-      // Safari 用 redirect
-      await signInWithRedirect(auth, googleProvider)
-    } else {
-      // 其他浏览器用 popup
-      await signInWithPopup(auth, googleProvider)
-      window.location.hash = '/'
-      window.location.reload()
-    }
-  } catch (error) {
-    console.error('登录失败:', error)
-    if (error.code === 'auth/popup-closed-by-user') {
-      errorMsg.value = '登录窗口已关闭，请重试。'
-    } else if (error.code === 'auth/popup-blocked') {
-      errorMsg.value = '弹出窗口被浏览器阻止。'
-      showManualHint.value = true
-    } else {
-      errorMsg.value = '登录失败：' + error.code
-    }
-    loading.value = false
-  }
+function handleGoogleLogin() {
+  window.location.href = buildGoogleAuthUrl()
 }
 </script>

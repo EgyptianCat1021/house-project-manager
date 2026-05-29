@@ -194,12 +194,18 @@
     <!-- 删除确认弹窗 -->
     <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
       <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
-        <h3 class="font-semibold text-gray-900 mb-2">确认删除</h3>
-        <p class="text-sm text-gray-500 mb-6">确定要删除「{{ project.name }}」吗？此操作不可恢复。</p>
-        <div class="flex gap-3">
-          <button @click="showDeleteConfirm = false" class="flex-1 py-2 text-sm border border-gray-300 rounded-lg">取消</button>
-          <button @click="doDelete" :disabled="deleting" class="flex-1 py-2 text-sm text-white bg-red-500 rounded-lg disabled:opacity-50">
-            {{ deleting ? '删除中...' : '确认删除' }}
+        <h3 class="font-semibold text-gray-900 mb-2">删除项目</h3>
+        <p class="text-sm text-gray-500 mb-2">确定要删除「{{ project.name }}」吗？</p>
+        <p class="text-xs text-gray-400 mb-5">⚠️ 删除后不可恢复。如果只是暂时不需要，建议改为「归档」。</p>
+        <div class="flex flex-col gap-2">
+          <button @click="doArchive" :disabled="deleting" class="w-full py-2.5 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50">
+            📦 归档此项目（隐藏但保留数据）
+          </button>
+          <button @click="doDelete" :disabled="deleting" class="w-full py-2.5 text-sm text-red-500 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50">
+            {{ deleting ? '删除中...' : '永久删除' }}
+          </button>
+          <button @click="showDeleteConfirm = false" class="w-full py-2.5 text-sm text-gray-400 hover:text-gray-600">
+            取消
           </button>
         </div>
       </div>
@@ -309,6 +315,19 @@ async function doDelete() {
   } finally {
     deleting.value = false
     showDeleteConfirm.value = false
+  }
+}
+
+async function doArchive() {
+  deleting.value = true
+  try {
+    await updateProject(project.value.id, { status: '已完成', archived: true })
+    showDeleteConfirm.value = false
+    router.push('/projects')
+  } catch (e) {
+    alert('归档失败：' + e.message)
+  } finally {
+    deleting.value = false
   }
 }
 </script>
